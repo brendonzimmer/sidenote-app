@@ -7,6 +7,7 @@ import {
   View,
   SafeAreaView,
   Animated,
+  Text,
   TextInput,
 } from "react-native";
 
@@ -38,7 +39,7 @@ export default function ExploreScreen() {
     queryKey: ["search", debouncedSearch],
     queryFn: async () => {
       const response = await fetch(
-        `http://172.20.10.2:3000/api/album?search=${debouncedSearch}`
+        `http://172.20.10.2:3000/api/search?search=${debouncedSearch}`
       );
       return await response.json();
     },
@@ -101,7 +102,46 @@ export default function ExploreScreen() {
       )}
 
       {searchRes.data && (
-        <ScrollView>{searchRes.data.map(a => console.log(a))}</ScrollView>
+        <ScrollView style={{ paddingHorizontal: 24 }}>
+          {searchRes.data.albums?.map(a => (
+            <View
+              key={a.id}
+              style={{ flexDirection: "row", paddingVertical: 6, gap: 8 }}
+            >
+              <Image
+                source={{ uri: a.images[0]?.url ?? "" }}
+                style={{ width: "14%", aspectRatio: 1, borderRadius: 8 }}
+              />
+              <View style={{ flex: 1, justifyContent: "center" }}>
+                <Text style={{ fontSize: 16, fontWeight: "500" }}>
+                  {a.name}
+                </Text>
+                <Text style={{ fontSize: 14, fontWeight: "400" }}>
+                  {a.artists.map(a => a.name).join(", ")} • {"Album"}
+                </Text>
+              </View>
+            </View>
+          ))}
+          {searchRes.data.artists?.map(a => (
+            <View
+              key={a.id}
+              style={{ flexDirection: "row", paddingVertical: 6, gap: 8 }}
+            >
+              <Image
+                source={{ uri: a.images[0]?.url ?? "" }}
+                style={{ width: "14%", aspectRatio: 1, borderRadius: 100 }}
+              />
+              <View style={{ flex: 1, justifyContent: "center" }}>
+                <Text style={{ fontSize: 16, fontWeight: "500" }}>
+                  {a.name}
+                </Text>
+                <Text style={{ fontSize: 14, fontWeight: "400" }}>
+                  {"Artist"}
+                </Text>
+              </View>
+            </View>
+          ))}
+        </ScrollView>
       )}
     </SafeAreaView>
   );
