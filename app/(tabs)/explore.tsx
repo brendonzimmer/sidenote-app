@@ -9,7 +9,10 @@ import {
   Animated,
   Text,
   TextInput,
+  Pressable,
 } from "react-native";
+
+import type { Artist, SimplifiedAlbum } from "@spotify/web-api-ts-sdk";
 
 import { Collapsible } from "@/components/Collapsible";
 import { ExternalLink } from "@/components/ExternalLink";
@@ -20,28 +23,33 @@ import AnimatedHeader, { Header } from "@/components/navigation/AnimatedHeader";
 import { useEffect, useRef, useState } from "react";
 import SearchBar from "@/components/SearchBar";
 import { useQuery } from "@tanstack/react-query";
-import { chunk } from "../util/chunks";
+import { chunk } from "../../util/chunks";
 import { useDebounce } from "use-debounce";
+import { router } from "expo-router";
 
 export default function ExploreScreen() {
   const offset = useRef(new Animated.Value(0)).current;
   const [searchText, setSearch] = useState("");
   const [debouncedSearch] = useDebounce(searchText, 300);
-  const [cancelSearch, setCancelSearch] = useState(true);
-  const { isPending, error, data } = useQuery({
+  const trending = useQuery({
     queryKey: ["trending"],
     queryFn: async () => {
-      const response = await fetch(`http://172.20.10.2:3000/api/new`);
-      return await response.json();
+      const response = await fetch(
+        `${process.env.EXPO_PUBLIC_SERVER_ADDR}/api/new`
+      );
+      return (await response.json()) as SimplifiedAlbum[];
     },
   });
-  const searchRes = useQuery({
+  const search = useQuery({
     queryKey: ["search", debouncedSearch],
     queryFn: async () => {
       const response = await fetch(
-        `http://172.20.10.2:3000/api/search?search=${debouncedSearch}`
+        `${process.env.EXPO_PUBLIC_SERVER_ADDR}/api/search?search=${debouncedSearch}`
       );
-      return await response.json();
+      return (await response.json()) as {
+        albums: SimplifiedAlbum[];
+        artists: Artist[];
+      };
     },
     enabled: !!debouncedSearch,
   });
@@ -58,7 +66,7 @@ export default function ExploreScreen() {
       >
         <SearchBar setSearch={setSearch} />
       </View>
-      {!searchRes.data && (
+      {!search.data && (
         <ScrollView
           contentInset={{ bottom: 60 + 12 }}
           style={{
@@ -73,13 +81,15 @@ export default function ExploreScreen() {
             }
           )}
         >
-          {isPending && <ThemedText>Loading...</ThemedText>}
-          {error && <ThemedText>Error: {error.message}</ThemedText>}
-          {data && (
+          {trending.isPending && <ThemedText>Loading...</ThemedText>}
+          {trending.error && (
+            <ThemedText>Error: {trending.error.message}</ThemedText>
+          )}
+          {trending.data && (
             <View style={{ gap: 12, paddingTop: 12 }}>
-              {chunk(data, 3).map(d => (
+              {chunk(trending.data, 3).map(d => (
                 <View
-                  key={d[0].id}
+                  key={d.map(a => a.id).join(",")}
                   style={{
                     flex: 1,
                     flexDirection: "row",
@@ -88,11 +98,24 @@ export default function ExploreScreen() {
                   }}
                 >
                   {d.map(a => (
-                    <Image
+                    <Pressable
                       key={a.id}
-                      source={{ uri: a.images[0].url }}
                       style={{ flex: 1, aspectRatio: 1, borderRadius: 8 }}
-                    />
+                      onPress={() =>
+                        router.push({
+                          // @ts-ignore
+                          pathname: `/album/${a.id}`,
+                          params: {
+                            data: JSON.stringify(a),
+                          },
+                        })
+                      }
+                    >
+                      <Image
+                        source={{ uri: a.images[0].url }}
+                        style={{ flex: 1, aspectRatio: 1, borderRadius: 8 }}
+                      />
+                    </Pressable>
                   ))}
                 </View>
               ))}
@@ -101,45 +124,70 @@ export default function ExploreScreen() {
         </ScrollView>
       )}
 
-      {searchRes.data && (
+      {search.data && (
         <ScrollView style={{ paddingHorizontal: 24 }}>
-          {searchRes.data.albums?.map(a => (
-            <View
+          {search.data.albums?.map(a => (
+            <Pressable
               key={a.id}
-              style={{ flexDirection: "row", paddingVertical: 6, gap: 8 }}
+              onPress={() =>
+                router.push({
+                  // @ts-ignore
+                  pathname: `/album/${a.id}`,
+                  params: {
+                    data: JSON.stringify(a),
+                  },
+                })
+              }
             >
-              <Image
-                source={{ uri: a.images[0]?.url ?? "" }}
-                style={{ width: "14%", aspectRatio: 1, borderRadius: 8 }}
-              />
-              <View style={{ flex: 1, justifyContent: "center" }}>
-                <Text style={{ fontSize: 16, fontWeight: "500" }}>
-                  {a.name}
-                </Text>
-                <Text style={{ fontSize: 14, fontWeight: "400" }}>
-                  {a.artists.map(a => a.name).join(", ")} • {"Album"}
-                </Text>
+              <View
+                key={a.id}
+                style={{ flexDirection: "row", paddingVertical: 6, gap: 8 }}
+              >
+                <Image
+                  source={{ uri: a.images[0]?.url ?? "" }}
+                  style={{ width: "14%", aspectRatio: 1, borderRadius: 8 }}
+                />
+                <View style={{ flex: 1, justifyContent: "center" }}>
+                  <Text style={{ fontSize: 16, fontWeight: "500" }}>
+                    {a.name}
+                  </Text>
+                  <Text style={{ fontSize: 14, fontWeight: "400" }}>
+                    {a.artists.map(a => a.name).join(", ")} • {"Album"}
+                  </Text>
+                </View>
               </View>
-            </View>
+            </Pressable>
           ))}
-          {searchRes.data.artists?.map(a => (
-            <View
+          {search.data.artists?.map(a => (
+            <Pressable
               key={a.id}
-              style={{ flexDirection: "row", paddingVertical: 6, gap: 8 }}
+              onPress={() =>
+                router.push({
+                  // @ts-ignore
+                  pathname: `/artist/${a.id}`,
+                  params: {
+                    data: JSON.stringify(a),
+                  },
+                })
+              }
             >
-              <Image
-                source={{ uri: a.images[0]?.url ?? "" }}
-                style={{ width: "14%", aspectRatio: 1, borderRadius: 100 }}
-              />
-              <View style={{ flex: 1, justifyContent: "center" }}>
-                <Text style={{ fontSize: 16, fontWeight: "500" }}>
-                  {a.name}
-                </Text>
-                <Text style={{ fontSize: 14, fontWeight: "400" }}>
-                  {"Artist"}
-                </Text>
+              <View
+                style={{ flexDirection: "row", paddingVertical: 6, gap: 8 }}
+              >
+                <Image
+                  source={{ uri: a.images[0]?.url ?? "" }}
+                  style={{ width: "14%", aspectRatio: 1, borderRadius: 100 }}
+                />
+                <View style={{ flex: 1, justifyContent: "center" }}>
+                  <Text style={{ fontSize: 16, fontWeight: "500" }}>
+                    {a.name}
+                  </Text>
+                  <Text style={{ fontSize: 14, fontWeight: "400" }}>
+                    {"Artist"}
+                  </Text>
+                </View>
               </View>
-            </View>
+            </Pressable>
           ))}
         </ScrollView>
       )}

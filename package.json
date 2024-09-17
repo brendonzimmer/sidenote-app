@@ -17,6 +17,7 @@
   "dependencies": {
     "@expo/vector-icons": "^14.0.2",
     "@react-navigation/native": "^6.0.2",
+    "@spotify/web-api-ts-sdk": "^1.2.0",
     "@tanstack/react-query": "^5.52.1",
     "add": "^2.0.6",
     "expo": "~51.0.28",
